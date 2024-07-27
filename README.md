@@ -1,6 +1,15 @@
 # Vasara
 A little modal window UI framework in JS. See `index.html` and `demo.js` for an example usage. Screenshots from this demo are used in the readme
 
+## Usage
+
+The code can be found at `https://raw.githubusercontent.com/0mlml/vasara/main/vasara.js`
+
+Create a new `vasara` object, for example, like this:
+```js
+const ui = vasara();
+```
+
 ## Features
 
 ### Awesome styling

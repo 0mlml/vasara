@@ -1,7 +1,3 @@
-/**
- * @fileoverview This file contains the map editor. 
- */
-
 const ui = vasara();
 
 const lines = [];
