@@ -1,0 +1,12 @@
+*
+
+!.gitignore
+!.github/
+!.github/*
+!LICENSE
+
+!index.html
+!styles.css
+!demo.js
+
+!vasara.js
