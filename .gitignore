@@ -4,6 +4,7 @@
 !.github/
 !.github/*
 !LICENSE
+!README.md
 
 !index.html
 !styles.css
