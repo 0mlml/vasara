@@ -109,6 +109,6 @@ modal.generateButton({
 ![Screenshot of a demo window](.github/demo-box-window.png)
 
 ### Duplicate Title Stacking
-Windows with the same titles will have a (number) added automatically.
-This can be disabled with the `disableTitleStacking` option.
+Windows with the same titles will have a (number) added automatically. This can be disabled with the `disableTitleStacking` option.
+
 ![Screenshot of title stacking](.github/window-stacking.png)
