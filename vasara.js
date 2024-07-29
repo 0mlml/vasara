@@ -813,12 +813,12 @@ const vasara = function () {
 .modal-window-content button {
     border          : none;
     border-radius   : 15px;
-    background-color: #f5f5f5;
+    background-color: #777;
     cursor          : pointer;
 }
 
 .modal-window-content button:hover {
-    background-color: #e9e9e9;
+    background-color: #aaa;
 }
 
 .modal-window-content button:active {
