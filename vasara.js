@@ -728,6 +728,7 @@ const vasara = function () {
 
         const configElements = document.querySelectorAll('[tag=vasara-config-element]');
         configElements.forEach(e => e.addEventListener('change', updateConfigElements));
+        updateConfigElements();
 
         modal.isVasaraConfig = true;
 
