@@ -557,13 +557,16 @@ const vasara = function () {
 
             if (typeof config[elem.id].showOnlyIf === 'function') {
                 const label = document.querySelector(`[for=${elem.id}]`);
+                const next = elem.nextElementSibling;
                 if (config[elem.id].showOnlyIf()) {
-                    elem.style.display = 'block';
-                    label.style.display = 'block';
+                    elem.style.display = 'inline-block';
+                    label.style.display = 'inline-block';
+                    if (next.tagName === 'BR') next.style.display = 'inline-block';
                 }
                 else {
                     elem.style.display = 'none';
                     label.style.display = 'none';
+                    if (next.tagName === 'BR') next.style.display = 'none';
                 }
             }
         }
@@ -691,6 +694,7 @@ const vasara = function () {
     z-index         : 1000;
     box-shadow      : 0 2px 10px rgba(0, 0, 0, 0.1);
     font-family     : system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    overflow        : hidden;
 }
 
 .modal-window-header {
@@ -727,7 +731,10 @@ const vasara = function () {
 }
 
 .modal-window-content {
-    padding: 20px;
+    padding   : 20px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    height    : 100%;
 }
 
 .modal-window-content button {
@@ -752,8 +759,7 @@ const vasara = function () {
 }
 
 .resizable {
-    resize  : both;
-    overflow: auto;
+    resize: both;
 }
 
 .ghosted {
