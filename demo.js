@@ -28,12 +28,10 @@ const redraw = () => {
 }
 
 const openNewLineModal = () => {
-    let modalTitle = "Add New Line";
-
-    const line = { x1: "", y1: "", x2: "", y2: "", color: "" };
+    const line = { x1: '', y1: '', x2: '', y2: '', color: '' };
 
     const modal = ui.generateModalWindow({
-        title: modalTitle,
+        title: 'Add New Line',
         width: 500,
         height: 400,
         resizable: true,
@@ -42,36 +40,36 @@ const openNewLineModal = () => {
     modal.generateLabel({
         text: 'X1:',
     }).generateNumberInput({
-        oninput: (e) => { line.x1 = e.target.value; },
+        callback: (e) => { line.x1 = e.target.value; },
     }).putNewline();
 
     modal.generateLabel({
         text: 'Y1:',
     }).generateNumberInput({
-        oninput: (e) => { line.y1 = e.target.value; },
+        callback: (e) => { line.y1 = e.target.value; },
     }).putNewline();
 
     modal.generateLabel({
         text: 'X2:',
     }).generateNumberInput({
-        oninput: (e) => { line.x2 = e.target.value; },
+        callback: (e) => { line.x2 = e.target.value; },
     }).putNewline();
 
     modal.generateLabel({
         text: 'Y2:',
     }).generateNumberInput({
-        oninput: (e) => { line.y2 = e.target.value; },
+        callback: (e) => { line.y2 = e.target.value; },
     }).putNewline();
 
     modal.generateLabel({
         text: 'Color:',
     }).generateColorInput({
-        oninput: (e) => { line.color = e.target.value; },
+        callback: (e) => { line.color = e.target.value; },
     }).putNewline();
 
     modal.generateButton({
         text: 'Add',
-        onclick: () => {
+        callback: () => {
             for (const key in ['x1', 'y1', 'x2', 'y2']) {
                 line[key] = parseFloat(line[key]);
             }
@@ -83,9 +81,9 @@ const openNewLineModal = () => {
 }
 
 const openNewBoxModal = () => {
-    let modalTitle = "Add New Box";
+    let modalTitle = 'Add New Box';
 
-    const box = { x: "", y: "", w: "", h: "", color: "" };
+    const box = { x: '', y: '', w: '', h: '', color: '' };
 
     const modal = ui.generateModalWindow({
         title: modalTitle,
@@ -97,36 +95,36 @@ const openNewBoxModal = () => {
     modal.generateLabel({
         text: 'X:',
     }).generateNumberInput({
-        oninput: (e) => { box.x = e.target.value; },
+        callback: (e) => { box.x = e.target.value; },
     }).putNewline();
 
     modal.generateLabel({
         text: 'Y:',
     }).generateNumberInput({
-        oninput: (e) => { box.y = e.target.value; },
+        callback: (e) => { box.y = e.target.value; },
     }).putNewline();
 
     modal.generateLabel({
         text: 'w:',
     }).generateNumberInput({
-        oninput: (e) => { box.w = e.target.value; },
+        callback: (e) => { box.w = e.target.value; },
     }).putNewline();
 
     modal.generateLabel({
         text: 'H:',
     }).generateNumberInput({
-        oninput: (e) => { box.h = e.target.value; },
+        callback: (e) => { box.h = e.target.value; },
     }).putNewline();
 
     modal.generateLabel({
         text: 'Color:',
     }).generateColorInput({
-        oninput: (e) => { box.color = e.target.value; },
+        callback: (e) => { box.color = e.target.value; },
     }).putNewline();
 
     modal.generateButton({
         text: 'Add',
-        onclick: () => {
+        callback: () => {
             for (const key in ['x', 'y', 'w', 'h']) {
                 box[key] = parseFloat(box[key]);
             }
@@ -137,22 +135,95 @@ const openNewBoxModal = () => {
     });
 }
 
+ui.registerConfigValue({
+    key: 'myCheckbox',
+    display: 'Checkbox',
+    description: 'A checkbox value',
+    type: 'checkbox',
+    value: true,
+    callback: v => console.log(`Checkbox set to: ${v}`),
+});
 
-let mapEditorMainMenu = null;
-ui.registerKeybinding('alt+e', e => {
+ui.registerConfigValue({
+    key: 'myColorPicker',
+    display: 'Color picker',
+    description: 'A color value',
+    type: 'color',
+    value: '#b00ba5',
+    callback: v => console.log(`Color set to: ${v}`),
+});
+
+const mainMenuHotkeyAction = e => {
     e.preventDefault();
 
-    if (!mapEditorMainMenu) {
-        mapEditorMainMenu = ui.generateModalWindow({
-            title: 'Main Menu',
-            width: 500,
-            height: 300,
-            resizable: true,
-        });
-        mapEditorMainMenu.generateButton({ text: "Add New Line", onclick: openNewLineModal });
-        mapEditorMainMenu.generateButton({ text: "Add New Box", onclick: openNewBoxModal });
-    } else {
-        mapEditorMainMenu.remove();
-        mapEditorMainMenu = null;
-    }
+    const modal = ui.generateModalWindow({
+        title: 'Main Menu',
+        width: 500,
+        height: 300,
+        resizable: true,
+        unique: true,
+    });
+    if (!modal) return;
+    modal.generateButton({ text: 'Add New Line', callback: openNewLineModal });
+    modal.generateButton({ text: 'Add New Box', callback: openNewBoxModal });
+}
+
+ui.registerConfigValue({
+    key: 'myHotkey',
+    display: 'Hotkey',
+    description: 'A hotkey',
+    type: 'hotkey',
+    value: 'Alt+w',
+    callback: v => console.log(`Hotkey set to: ${v}`),
+    action: mainMenuHotkeyAction
+});
+
+ui.registerConfigValue({
+    key: 'myDropdown',
+    display: 'Dropdown',
+    description: 'A dropdown selection',
+    type: 'dropdown',
+    value: 'A',
+    options: ['B', 'C', 'D'],
+    callback: v => console.log(`Dropdown set to: ${v}`),
+});
+
+ui.registerConfigValue({
+    key: 'myNumber',
+    display: 'Number input',
+    description: 'A number input',
+    type: 'number',
+    value: 500,
+    step: 100,
+    min: -1000,
+    max: 1000,
+    callback: v => console.log(`Number set to: ${v}`),
+});
+
+ui.registerConfigValue({
+    key: 'myText',
+    display: 'Text input',
+    description: 'A string value',
+    type: 'text',
+    value: 'Hello world!',
+    callback: v => console.log(`Text set to: ${v}`),
+});
+
+ui.registerKeybinding('alt+e', e => {
+    e.preventDefault();
+    let configWindow = ui.generateConfigWindow();
+    if (!configWindow) return;
+
+    configWindow.generateButton({
+        text: 'Save',
+        callback: () => {
+            ui.saveConfig();
+        }
+    });
+    configWindow.generateButton({
+        text: 'Load',
+        callback: () => {
+            ui.loadConfig();
+        }
+    });
 });

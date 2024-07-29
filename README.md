@@ -1,5 +1,6 @@
 # Vasara
-A little modal window UI framework in JS. See `index.html` and `demo.js` for an example usage. Screenshots from this demo are used in the readme
+A little modal window UI framework in JS. See `index.html` and `demo.js` for an example usage. Screenshots from [this demo](http://www.mlml.dev/vasara/) are used in the readme
+### !!! Under heavy development, expect breaking API changes and bugs !!! 
 
 ## Usage
 
@@ -17,6 +18,14 @@ const ui = vasara();
 Modern styling with box shadow and rounded corners
 
 ![Screenshot of lots of windows open](.github/styling-splash.png)
+
+## Configuration Management
+
+Helper functions to manage configuration values of types: `'checkbox', 'color', 'hotkey', 'dropdown', 'number', 'text', 'hidden'`
+
+Register, set, query configuration values with built in validation and callbacks. Also automatically generate a modal window with all of the configuration values:
+
+![Config window](.github/config-window.png)
 
 ### Hotkeys
 
@@ -110,5 +119,7 @@ modal.generateButton({
 
 ### Duplicate Title Stacking
 Windows with the same titles will have a (number) added automatically. This can be disabled with the `disableTitleStacking` option.
+
+You can also block duplicate windows with the `unique` flag.
 
 ![Screenshot of title stacking](.github/window-stacking.png)

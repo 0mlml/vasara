@@ -1,7 +1,5 @@
 const vasara = function () {
-    /** @type {{x: number, y: number}} The current position of the mouse */
     const mousePosition = { x: 0, y: 0 };
-    /** @type {Map.<number, boolean>} The current state of the mouse */
     const mouseButtons = new Map();
 
     document.addEventListener('mousemove', (event) => {
@@ -17,9 +15,7 @@ const vasara = function () {
         mouseButtons.set(event.button, false);
     });
 
-    /** @type {Map<string, boolean>} The current state of the keyboard */
     const keyboardKeys = new Map();
-    /** @type {Map<string, Function>} Keybindings; key format: "key1+key2+key3" */
     const globalKeybindings = new Map();
 
     /**
@@ -38,8 +34,15 @@ const vasara = function () {
     document.addEventListener('keydown', (event) => {
         keyboardKeys.set(event.key.toLowerCase(), true);
 
-        const keyCombo = [...keyboardKeys.keys()].sort().join('+');
-        const funcs = globalKeybindings.get(keyCombo);
+        const keyCombo = [...keyboardKeys.keys()].sort().join('+').toLowerCase();
+        const funcs = globalKeybindings.get(keyCombo) || [];
+
+        for (const key of Object.keys(config)) {
+            if (config[key].type === 'hotkey' && config[key].value.toLowerCase() === keyCombo) {
+                funcs.push(config[key].action);
+            }
+        }
+
         if (funcs?.length) funcs.forEach(f => f(event));
     });
 
@@ -70,6 +73,177 @@ const vasara = function () {
         keyboardKeys.clear();
     });
 
+    const config = {};
+    const configLocalStorageKey = 'vasara-storedconfig';
+
+    const validateConfigValue = (type, value) => {
+        switch (type) {
+            case 'checkbox':
+                return typeof value === 'boolean';
+            case 'color':
+                return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(value);
+            case 'hotkey':
+                return /^(?:Ctrl|Alt|Shift|Meta|\b[a-zA-Z]\b)(?:\+(?:Ctrl|Alt|Shift|Meta|\b[a-zA-Z]\b))*$/.test(value);
+            case 'number':
+                return !isNaN(value);
+            default:
+                return true;
+        }
+    }
+
+    /**
+     * @description Query the value of a config key
+     * @param {string} key
+     * @returns {any} The stored value
+     */
+    this.queryConfigKey = (key) => {
+        if (!config[key]) return console.warn('Key does not exist!');
+        return config[key].value;
+    }
+
+    /**
+     * @description Set a value 
+     * @param {string} key 
+     * @param {string} value 
+     * @param {boolean} triggerCallback 
+     * @param {boolean} triggerSave 
+     * @returns 
+     */
+    this.setConfigValue = (key, value, triggerCallback = true, triggerSave = false) => {
+        if (!config[key]) return console.warn(`Tried to set the value of unregistered key ${key}`);
+
+        if (!validateConfigValue(config[key].type, value)) return console.error(`Tried to give ${config[key].type} '${key}' an invalid value of: `, value);
+
+        config[key].value = value;
+
+        if (triggerCallback && typeof config[key].callback === 'function') {
+            config[key].callback(value);
+        }
+
+        if (triggerSave) {
+            this.saveConfig();
+        }
+    }
+
+    const serializeConfig = (pretty = false) => {
+        const object = {};
+
+        for (const key of Object.keys(config)) {
+            object[key] = String(config[key].value);
+        }
+
+        return JSON.stringify(object, null, pretty ? 4 : null);
+    }
+
+    /**
+     * @description Save the config to localStorage
+     */
+    this.saveConfig = () => {
+        window.localStorage.setItem(configLocalStorageKey, serializeConfig());
+    }
+
+    const deserializeConfig = (str, triggerCallbacks = false) => {
+        const object = JSON.parse(str);
+        if (!object) return console.warn(`No object`);
+
+        for (const key of Object.keys(object)) {
+            if (typeof config[key] !== "object") {
+                console.warn(`Tried to restore config key '${key}' which has not been registered.`);
+                continue;
+            }
+
+            const value = object[key];
+            switch (config[key].type) {
+                case 'checkbox':
+                    if (value === 'false') this.setConfigValue(key, false, triggerCallbacks);
+                    else if (value === 'true') this.setConfigValue(key, true, triggerCallbacks);
+                    else console.warn(`Tried to give checkbox '${key}' an invalid value of: `, value);
+                    break;
+                case 'color':
+                    if (validateConfigValue('color', value)) this.setConfigValue(key, value, triggerCallbacks);
+                    else console.warn(`Tried to give color '${key}' an invalid value of: `, value);
+                    break;
+                case 'hotkey':
+                    if (validateConfigValue('hotkey', value)) this.setConfigValue(key, value, triggerCallbacks);
+                    else console.warn(`Tried to give hotkey '${key}' an invalid value of: `, value);
+                    break;
+                case 'number':
+                    if (!isNaN(value)) this.setConfigValue(key, parseFloat(value), triggerCallbacks);
+                    else console.warn(`Tried to give number '${key}' a NaN value of: `, value);
+                    break;
+                case 'dropdown':
+                case 'text':
+                case 'hidden':
+                    this.setConfigValue(key, value, triggerCallbacks);
+                    break;
+            }
+        }
+    }
+
+    /**
+     * @description Load the configuration localStorage
+     */
+    this.loadConfig = () => {
+        deserializeConfig(window.localStorage.getItem(configLocalStorageKey));
+
+        updateConfigElements();
+    }
+
+    this.registerConfigValue = ({
+        key,
+        value,
+        display = 'Config Value',
+        description = 'A configuration value',
+        type, // 'checkbox', 'color', 'hotkey', 'dropdown', 'number', 'text', 'hidden'
+        callback = null,
+        showOnlyIf = null,
+        action = null, // 'hotkey' only
+        options = [], // 'dropdown' only
+        min = null, // 'number' only
+        max = null, // 'number' only
+        step = null, // 'number' only
+    } = {}) => {
+        const configValue = { key, display, description };
+
+        if (!['checkbox', 'color', 'hotkey', 'dropdown', 'number', 'text', 'hidden'].includes(type)) return console.error(`Invalid type: ${type}`);
+
+        configValue.type = type;
+
+        if (!validateConfigValue(type, value)) return console.error(`Tried to give ${type} '${key}' an invalid value of: `, value);
+
+        configValue.value = value;
+
+        if (type === 'hotkey') {
+            if (action === null) {
+                return console.error('Must define an action for a hotkey')
+            }
+
+            Object.assign(configValue, { action });
+        }
+
+        if (type === 'number') {
+            if (min === null || max === null || step === null) {
+                return console.error('min, max, step must be defined when registering a number');
+            }
+
+            Object.assign(configValue, { min, max, step });
+        }
+
+        if (type === 'dropdown') {
+            const opts = [value];
+            opts.push(...options);
+            Object.assign(configValue, { options: opts });
+        }
+
+        if (showOnlyIf !== null && typeof showOnlyIf !== 'function') return console.error('Value of showOnlyIf is not a function');
+        Object.assign(configValue, { showOnlyIf });
+
+        if (callback !== null && typeof callback !== 'function') return console.error('Value of onchange is not a functions');
+        Object.assign(configValue, { callback });
+
+        config[key] = configValue;
+    }
+
     /**
      * @description Shorthand function for creating an element and appending it to a parent
      * @param {string} type The type of element to create 
@@ -90,7 +264,7 @@ const vasara = function () {
 
     /**
      * @description Generates a modal window
-     * @param {{title: string, content: string | HTMLElement, width: number, height: number, resizable: boolean}} options The options for the modal window
+     * @param {Object} options The options for the modal window
      * @returns {HTMLElement} The modal window element
      */
     this.generateModalWindow = ({
@@ -102,9 +276,38 @@ const vasara = function () {
         disableTitleStacking = false,
         enableGhostButton = true,
         enableCloseButton = true,
+        unique = false,
         tag = '',
+        id = '',
     } = {}) => {
         if (content instanceof HTMLElement) content = content.outerHTML;
+
+        if (!disableTitleStacking || unique) {
+            const titleElements = document.querySelectorAll('.' + hcn('modal-window-header-title'));
+            let matched = 0;
+
+            for (const elem of titleElements) {
+                if (elem.getAttribute('originalTitle') === title) {
+                    matched++;
+                }
+            }
+
+            if (matched <= 0) {
+                titleDuplicateCounts[title] = 0;
+            }
+
+            titleDuplicateCounts[title]++;
+
+            if (titleDuplicateCounts[title] > 1) {
+                if (unique) {
+                    return console.info(`Blocked duplicate window with title: `, title);
+                }
+
+                if (!disableTitleStacking) {
+                    title += ` (${titleDuplicateCounts[title]})`;
+                }
+            }
+        }
 
         const modal = this.createElem('div', 'modal-window', '', document.body);
         const header = this.createElem('div', 'modal-window-header', '', modal);
@@ -136,27 +339,6 @@ const vasara = function () {
             }
         });
 
-        if (!disableTitleStacking) {
-            const titleElements = document.querySelectorAll('.' + hcn('modal-window-header-title'));
-            let matched = 0;
-
-            for (const elem of titleElements) {
-                if (elem.getAttribute('originalTitle') === title) {
-                    matched++;
-                }
-            }
-
-            if (matched <= 0) {
-                titleDuplicateCounts[title] = 0;
-            }
-
-            titleDuplicateCounts[title]++;
-
-            if (titleDuplicateCounts[title] > 1) {
-                title += ` (${titleDuplicateCounts[title]})`;
-            }
-        }
-
         titleElem.innerText = title;
         titleElem.setAttribute('originalTitle', title);
         if (enableGhostButton) createElem('div', 'modal-window-header-button ghost-button', 'Toggle window shimmer', buttons).addEventListener('click', () => modal.classList.toggle(hcn('ghosted')));
@@ -166,6 +348,7 @@ const vasara = function () {
         });
         const contentElem = this.createElem('div', 'modal-window-content', '', modal);
         contentElem.innerHTML = content;
+        modal.content = contentElem;
 
         Object.assign(modal.style, { width: `${width}px`, height: `${height}px` });
         if (resizable) modal.classList.add(hcn('resizable'));
@@ -174,12 +357,16 @@ const vasara = function () {
 
         modal.generateLabel = function ({
             text = '',
+            tooltip = '',
             htmlfor = '',
+            tag = '',
         } = {}) {
             const label = document.createElement('label');
 
             label.textContent = text;
+            label.title = tooltip;
             label.htmlFor = htmlfor;
+            label.setAttribute('tag', tag);
 
             contentElem.appendChild(label);
             return modal;
@@ -188,30 +375,115 @@ const vasara = function () {
         modal.generateNumberInput = function ({
             id = '',
             value = 0,
-            oninput = null,
+            step = null,
+            max = null,
+            min = null,
+            callback = null,
+            tag = '',
         } = {}) {
             const input = document.createElement('input');
 
             input.type = 'number';
             input.id = id;
             input.value = value;
-            input.oninput = oninput;
+            if (step !== null) input.step = step;
+            if (max !== null) input.max = max;
+            if (min !== null) input.min = min;
+            input.setAttribute('tag', tag);
 
+            input.addEventListener('change', callback);
             contentElem.appendChild(input);
+            return modal;
+        }
+
+        modal.generateDropdownInput = function ({
+            id = '',
+            value = '',
+            options = [],
+            callback = null,
+            tag = '',
+        } = {}) {
+            const select = document.createElement('select');
+            select.id = id;
+
+            if (options.indexOf(value) < 0) options.push(value);
+
+            for (const opt of options) {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.innerText = opt;
+                select.appendChild(option);
+            }
+
+            select.value = value;
+            select.setAttribute('tag', tag);
+
+            select.addEventListener('change', callback);
+            contentElem.appendChild(select);
             return modal;
         }
 
         modal.generateColorInput = function ({
             id = '',
             value = '',
-            oninput = null
+            callback = null,
+            tag = '',
         } = {}) {
             const input = document.createElement('input');
 
             input.type = 'color';
             input.id = id;
             input.value = value;
-            input.oninput = oninput;
+            input.setAttribute('tag', tag);
+
+            input.addEventListener('change', callback);
+            contentElem.appendChild(input);
+            return modal;
+        }
+
+        modal.generateCheckboxInput = function ({
+            id = '',
+            value = false,
+            callback = null,
+            tag = '',
+        } = {}) {
+            const input = document.createElement('input');
+
+            input.type = 'checkbox';
+            input.id = id;
+            input.checked = value;
+            input.setAttribute('tag', tag);
+
+            input.addEventListener('change', callback);
+            contentElem.appendChild(input);
+            return modal;
+        }
+
+        modal.generateHotkeyInput = function ({
+            id = '',
+            value = '',
+            callback = null,
+            tag = '',
+        } = {}) {
+            const input = document.createElement('input');
+
+            input.id = id;
+            input.type = 'text';
+            input.value = value;
+            input.readOnly = true;
+            input.addEventListener('focus', () => {
+                const onKeydown = (e) => {
+                    if (['Control', 'Shift', 'Alt'].includes(e.key)) return;
+                    e.preventDefault();
+                    const combo = (e.ctrlKey ? 'Ctrl+' : '') + (e.shiftKey ? 'Shift+' : '') + (e.altKey ? 'Alt+' : '') + e.key.toUpperCase();
+                    input.value = combo;
+                    callback(combo);
+                    input.blur();
+                    document.removeEventListener('keydown', onKeydown);
+                };
+                document.addEventListener('keydown', onKeydown);
+            });
+            input.setAttribute('tag', tag);
 
             contentElem.appendChild(input);
             return modal;
@@ -220,28 +492,34 @@ const vasara = function () {
         modal.generateStringInput = function ({
             id = '',
             value = '',
-            oninput = null
+            callback = null,
+            tag = '',
         } = {}) {
             const input = document.createElement('input');
 
             input.type = 'text';
             input.id = id;
             input.value = value;
-            input.oninput = oninput;
+            input.setAttribute('tag', tag);
 
+            input.addEventListener('change', callback);
             contentElem.appendChild(input);
             return modal;
         }
 
         modal.generateButton = function ({
-            text,
-            onclick
+            id = '',
+            text = '',
+            callback = null,
+            tag = '',
         } = {}) {
             const button = document.createElement('button');
 
+            button.id = id;
             button.textContent = text;
-            button.onclick = onclick;
+            button.setAttribute('tag', tag);
 
+            button.addEventListener('click', callback);
             contentElem.appendChild(button);
             return modal;
         }
@@ -256,6 +534,126 @@ const vasara = function () {
             contentElem.appendChild(element);
             return modal;
         }
+
+        return modal;
+    }
+
+    const updateConfigElements = () => {
+        const configElements = document.querySelectorAll('[tag=vasara-config-element]');
+
+        for (const elem of configElements) {
+            switch (config[elem.id].type) {
+                case 'checkbox':
+                    elem.checked = config[elem.id].value;
+                    break;
+                case 'hotkey':
+                case 'color':
+                case 'number':
+                case 'dropdown':
+                case 'text':
+                    elem.value = config[elem.id].value;
+                    break;
+            }
+
+            if (typeof config[elem.id].showOnlyIf === 'function') {
+                const label = document.querySelector(`[for=${elem.id}]`);
+                if (config[elem.id].showOnlyIf()) {
+                    elem.style.display = 'block';
+                    label.style.display = 'block';
+                }
+                else {
+                    elem.style.display = 'none';
+                    label.style.display = 'none';
+                }
+            }
+        }
+    }
+
+    /**
+     * @description Shorthand to generate a modal with the contents 
+     * @param {Object} options The options for the modal window
+     * @returns {HTMLElement} The modal window element
+     */
+    this.generateConfigWindow = ({
+        title = 'Config Window',
+        width = 400,
+        height = 300,
+        resizable = false,
+        disableTitleStacking = false,
+        enableGhostButton = true,
+        enableCloseButton = true,
+        tag = '',
+        id = '',
+    } = {}) => {
+        const modal = this.generateModalWindow({ title, width, height, resizable, disableTitleStacking, enableGhostButton, enableCloseButton, tag, id, unique: true });
+
+        if (!modal) return;
+
+        for (const key of Object.keys(config)) {
+            modal.generateLabel({
+                text: config[key].display,
+                tooltip: config[key].description,
+                htmlfor: key,
+            });
+            switch (config[key].type) {
+                case 'checkbox':
+                    modal.generateCheckboxInput({
+                        value: config[key].value,
+                        callback: e => this.setConfigValue(key, e.target.checked),
+                        tag: 'vasara-config-element',
+                        id: key,
+                    });
+                    break;
+                case 'color':
+                    modal.generateColorInput({
+                        value: config[key].value,
+                        callback: e => this.setConfigValue(key, e.target.value),
+                        tag: 'vasara-config-element',
+                        id: key,
+                    });
+                    break;
+                case 'hotkey':
+                    modal.generateHotkeyInput({
+                        value: config[key].value,
+                        callback: v => this.setConfigValue(key, v),
+                        tag: 'vasara-config-element',
+                        id: key,
+                    });
+                    break;
+                case 'number':
+                    modal.generateNumberInput({
+                        value: config[key].value,
+                        step: config[key].step,
+                        min: config[key].min,
+                        max: config[key].max,
+                        callback: e => this.setConfigValue(key, e.target.value),
+                        tag: 'vasara-config-element',
+                        id: key,
+                    });
+                    break;
+                case 'dropdown':
+                    modal.generateDropdownInput({
+                        value: config[key].value,
+                        options: config[key].options,
+                        callback: e => this.setConfigValue(key, e.target.value),
+                        tag: 'vasara-config-element',
+                        id: key,
+                    });
+                    break;
+                case 'text':
+                    modal.generateStringInput({
+                        value: config[key].value,
+                        callback: e => this.setConfigValue(key, e.target.value),
+                        tag: 'vasara-config-element',
+                        id: key,
+                    });
+                    break;
+            }
+            modal.putNewline();
+        }
+
+        const configElements = document.querySelectorAll('[tag=vasara-config-element]');
+        configElements.forEach(e => e.addEventListener('change', updateConfigElements));
 
         return modal;
     }
