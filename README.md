@@ -19,7 +19,7 @@ Modern styling with box shadow and rounded corners
 
 ![Screenshot of lots of windows open](.github/styling-splash.png)
 
-## Configuration Management
+### Configuration Management
 
 Helper functions to manage configuration values of types: `'checkbox', 'color', 'hotkey', 'dropdown', 'number', 'text', 'hidden'`
 

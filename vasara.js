@@ -73,6 +73,64 @@ const vasara = function () {
         keyboardKeys.clear();
     });
 
+    const settings = {
+        persistenceEnabled: false,
+    }
+    const persistentStateStorageKey = 'vasara-storedpersistentstate';
+    const savePersistentState = () => {
+        const state = [];
+
+        pruneModals();
+        for (let modal of modals) {
+            state.push({
+                title: modal.options.title,
+                content: modal.content.outerHTML,
+                width: parseFloat(modal.style.width),
+                height: parseFloat(modal.style.height),
+                top: parseFloat(modal.style.top),
+                left: parseFloat(modal.style.left),
+                resizable: modal.options.resizable,
+                disableTitleStacking: modal.options.disableTitleStacking,
+                enableGhostButton: modal.options.enableGhostButton,
+                enableCloseButton: modal.options.enableCloseButton,
+                unique: modal.options.unique,
+                tag: modal.options.tag,
+                id: modal.options.id,
+
+                isVasaraConfig: modal.isVasaraConfig,
+            });
+        }
+
+        localStorage.setItem(persistentStateStorageKey, JSON.stringify(state));
+
+        this.saveConfig();
+    }
+
+    /**
+     * @description Call this on load to enable the behavior of trying to persist the state of modal windows between page loads
+     */
+    this.loadPersistentState = () => {
+        settings.persistenceEnabled = true;
+
+        const state = JSON.parse(localStorage.getItem(persistentStateStorageKey));
+
+        this.loadConfig();
+
+        if (!state);
+
+        for (const options of state) {
+            if (options.isVasaraConfig) {
+                this.generateConfigWindow(options);
+            } else {
+                this.generateModalWindow(options);
+            }
+        }
+    }
+
+    window.addEventListener('beforeunload', e => {
+        savePersistentState();
+    });
+
     const config = {};
     const configLocalStorageKey = 'vasara-storedconfig';
 
@@ -203,6 +261,8 @@ const vasara = function () {
         max = null, // 'number' only
         step = null, // 'number' only
     } = {}) => {
+        if (config[key]) return console.error(`Tried to register an existing key!`);
+
         const configValue = { key, display, description };
 
         if (!['checkbox', 'color', 'hotkey', 'dropdown', 'number', 'text', 'hidden'].includes(type)) return console.error(`Invalid type: ${type}`);
@@ -261,6 +321,10 @@ const vasara = function () {
     }
 
     const titleDuplicateCounts = {};
+    let modals = [];
+    const pruneModals = () => {
+        modals = modals.filter(e => e.isConnected);
+    }
 
     /**
      * @description Generates a modal window
@@ -272,6 +336,8 @@ const vasara = function () {
         content = '',
         width = 400,
         height = 300,
+        top = null,
+        left = null,
         resizable = false,
         disableTitleStacking = false,
         enableGhostButton = true,
@@ -280,8 +346,6 @@ const vasara = function () {
         tag = '',
         id = '',
     } = {}) => {
-        if (content instanceof HTMLElement) content = content.outerHTML;
-
         if (!disableTitleStacking || unique) {
             const titleElements = document.querySelectorAll('.' + hcn('modal-window-header-title'));
             let matched = 0;
@@ -310,12 +374,16 @@ const vasara = function () {
         }
 
         const modal = this.createElem('div', 'modal-window', '', document.body);
+        modal.id = id;
+        modal.options = { title, content, width, height, top, left, resizable, disableTitleStacking, enableGhostButton, enableCloseButton, unique, tag, id };
+        modals.push(modal);
+
         const header = this.createElem('div', 'modal-window-header', '', modal);
         const titleElem = this.createElem('div', 'modal-window-header-title', '', header);
         const buttons = this.createElem('div', 'modal-window-header-buttons', '', header);
 
         const bringToFront = () => {
-            const modals = document.querySelectorAll('.' + hcn('modal-window'));
+            pruneModals();
             modals.forEach(m => m.style.zIndex = 0);
             modal.style.zIndex = 1;
         }
@@ -347,11 +415,12 @@ const vasara = function () {
             modal.remove()
         });
         const contentElem = this.createElem('div', 'modal-window-content', '', modal);
-        contentElem.innerHTML = content;
+        if (content) contentElem.outerHTML = content;
         modal.content = contentElem;
 
         Object.assign(modal.style, { width: `${width}px`, height: `${height}px` });
-        if (resizable) modal.classList.add(hcn('resizable'));
+        if (top !== null) Object.assign(modal.style, { top: `${top}px` });
+        if (left !== null) Object.assign(modal.style, { left: `${left}px` });
 
         if (tag) modal.setAttribute('tag', tag)
 
@@ -581,6 +650,8 @@ const vasara = function () {
         title = 'Config Window',
         width = 400,
         height = 300,
+        top = null,
+        left = null,
         resizable = false,
         disableTitleStacking = false,
         enableGhostButton = true,
@@ -588,7 +659,7 @@ const vasara = function () {
         tag = '',
         id = '',
     } = {}) => {
-        const modal = this.generateModalWindow({ title, width, height, resizable, disableTitleStacking, enableGhostButton, enableCloseButton, tag, id, unique: true });
+        const modal = this.generateModalWindow({ title, width, height, top, left, resizable, disableTitleStacking, enableGhostButton, enableCloseButton, tag, id, unique: true });
 
         if (!modal) return;
 
@@ -657,6 +728,8 @@ const vasara = function () {
 
         const configElements = document.querySelectorAll('[tag=vasara-config-element]');
         configElements.forEach(e => e.addEventListener('change', updateConfigElements));
+
+        modal.isVasaraConfig = true;
 
         return modal;
     }
